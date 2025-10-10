@@ -168,9 +168,15 @@ function SVMOD.Metatable:SV_EnterVehicle(ply, seat)
 		hook.Run("SV_TriedToEnterLockedVehicle", self, ply)
 		return -2
 	end
+-- Choose driver seat
+	local seatIndex = 1
 
-	local seatIndex = self:SV_GetNearestEmptySeat(ply:GetShootPos())
+	-- Only use nearest seat logic if seat 1 is occupied
+	if self.SV_Data.Seats[1].Entity then
+		seatIndex = self:SV_GetNearestEmptySeat(ply:GetShootPos())
+	end
 
+	-- If a specific seat was requested and it's available, use that
 	if seat and self.SV_Data.Seats[seat] and not self.SV_Data.Seats[seat].Entity then
 		seatIndex = seat
 	end
@@ -376,21 +382,17 @@ util.AddNetworkString("SV_SwitchSeat")
 net.Receive("SV_SwitchSeat", function(_, ply)
 	if not SVMOD.CFG.Seats.IsSwitchEnabled then return end
 
-	local currentSeat = ply:GetVehicle()
-	if not SVMOD:IsVehicle(currentSeat) then return end
+	local veh = ply:GetVehicle()
+	if not SVMOD:IsVehicle(veh) then return end
 
-	local veh = currentSeat:SV_GetDriverSeat()
-	
+	veh = veh:SV_GetDriverSeat()
+
 	if hook.Run("CanExitVehicle", veh, ply) == false then return end
 
 	local seatIndex = net.ReadUInt(4) -- max: 15
 
 	local seat = veh:SV_CreateSeat(seatIndex)
 	if IsValid(seat) then
-		if hook.Run("SV_PlayerCanSwitchSeat", ply, currentSeat, seat) == false then
-			return
-		end
-		
 		if hook.Run("CanPlayerEnterVehicle", ply, seat) == false then
 			return
 		end
