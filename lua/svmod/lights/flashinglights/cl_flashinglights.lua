@@ -1,19 +1,30 @@
 -- @class SVMOD
 -- @clientside
 
--- Sets the state of the flashing lights of the vehicle
+-- Sets the state of the flashing lights and siren of the vehicle
 -- driven by the player.
--- @tparam boolean result True to enable the flashing lights, false to disable
-function SVMOD:SetFlashingLightsState(value)
+-- @tparam boolean flashingLightsState True to enable the flashing lights, false to disable
+-- @tparam boolean sirenState True to enable the siren, false to disable
+function SVMOD:SetFlashingLightsState(flashingLightsState, sirenState)
+	-- 1.5.2 -> 1.6.0: Keep the same behavior as 1.5.2
+	if sirenState == nil then
+		sirenState = flashingLightsState
+	end
+
 	local Vehicle = LocalPlayer():GetVehicle()
 	if not SVMOD:IsVehicle(Vehicle) or not Vehicle:SV_IsDriverSeat() then return end
 
-	if not value then
-		value = false
+	if not flashingLightsState  then
+		flashingLightsState = false
+	end
+
+	if not sirenState then
+		sirenState = false
 	end
 
 	net.Start("SV_SetFlashingLightsState")
-	net.WriteBool(value)
+	net.WriteBool(flashingLightsState)
+	net.WriteBool(sirenState)
 	net.SendToServer()
 end
 
@@ -42,15 +53,22 @@ net.Receive("SV_TurnFlashingLights", function()
 	if not SVMOD:IsVehicle(veh) then return end
 	veh = veh:SV_GetDriverSeat()
 
-	local state = net.ReadBool()
+	local flashingLightState = net.ReadBool()
+	local sirenState = net.ReadBool()
 
-	if state then
+	if flashingLightState then
 		veh.SV_States.FlashingLights = true
 		veh:EmitSound("svmod/headlight/switch_on.wav")
-		startFlashingSound(veh)
 	else
 		veh.SV_States.FlashingLights = false
 		veh:EmitSound("svmod/headlight/switch_off.wav")
+	end
+
+	if sirenState then
+		veh.SV_States.Siren = true
+		startFlashingSound(veh)
+	else
+		veh.SV_States.Siren = false
 		stopFlashingSound(veh)
 	end
 end)
